@@ -7,6 +7,7 @@
 # By accessing, using, copying or modifying this work you indicate your
 # agreement to the Shotgun Pipeline Toolkit Source Code License. All rights
 # not expressly granted therein are reserved by Shotgun Software Inc.
+# dev
 
 # built-ins
 import base64
@@ -384,7 +385,7 @@ class TkAlembicNodeHandler(object):
 
         output_profile = self._get_output_profile(node)
 
-        self._app.log_debug("Applying tk alembic node profile: %s" % 
+        self._app.log_debug("Applying tk Alembic node profile: %s" % 
             (output_profile["name"],))
 
         # apply the supplied settings to the node
@@ -502,14 +503,50 @@ class TkAlembicNodeHandler(object):
         output_cache_template = self._app.get_template_by_name(
             output_profile["output_cache_template"])
 
+        # get the Step name field for the templated Mantra Output
+        entity_name = ""
+        asset_type = ""
+
+        try:
+            ctx = self._app.context
+            entity_name = ctx.entity['name']
+            entity_type = ctx.entity['type']
+        except:
+            msg="Could not set the Shotgun context Entity name."
+            self._app.log_debug(msg)
+            raise sgtk.TankError(msg)
+
         # create fields dict with all the metadata
-        fields = {
-            "name": work_file_fields.get("name", None),
-            "node": node.name(),
-            "renderpass": node.name(),
-            "SEQ": "FORMAT: $F",
-            "version": work_file_fields.get("version", None),
-        }
+        fields={}
+
+        # Shot Template fields
+        if entity_type == "Shot":
+            fields = {
+                "name": work_file_fields.get("name", None),
+                "node": node.name(),
+                "renderpass": node.name(),
+                "HSEQ": "FORMAT: $F",
+                "version": work_file_fields.get("version", None),
+                "Shot": entity_name,
+                "Step": work_file_fields.get("Step", None)
+            }
+
+        # Asset Template fields
+        if entity_type == "Asset":
+            # Set the Custom Asset Type
+            asset_type = work_file_fields.get("sg_asset_type", None)
+
+            fields = {
+                "name": work_file_fields.get("name", None),
+                "node": node.name(),
+                "renderpass": node.name(),
+                "HSEQ": "FORMAT: $F",
+                "version": work_file_fields.get("version", None),
+                "Asset": entity_name,
+                "sg_asset_type": asset_type,
+                "Step": work_file_fields.get("Step", None)
+            }
+
 
         fields.update(self._app.context.as_template_fields(
             output_cache_template))
